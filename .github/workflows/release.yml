@@ -1,0 +1,129 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers datasets accelerate
+          pip install scikit-learn xgboost numpy pandas
+          pip install PyQt6 matplotlib Pillow
+
+      - name: Build EXE
+        run: |
+          python -m PyInstaller ai_trainer.spec --noconfirm
+
+      - name: Compress artifact
+        run: |
+          Compress-Archive -Path dist/AI-Trainer-Lite -DestinationPath AI-Trainer-Lite-Windows-x64.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: AI-Trainer-Lite-Windows-x64.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller
+          pip install torch torchvision torchaudio
+          pip install transformers datasets accelerate
+          pip install scikit-learn xgboost numpy pandas
+          pip install PyQt6 matplotlib Pillow
+
+      - name: Build App
+        run: |
+          python -m PyInstaller ai_trainer.spec --noconfirm
+
+      - name: Compress artifact
+        run: |
+          cd dist && zip -r ../AI-Trainer-Lite-macOS-x64.zip AI-Trainer-Lite/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: AI-Trainer-Lite-macOS-x64.zip
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - name: Download macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "AI Trainer Lite ${{ github.ref_name }}"
+          body: |
+            ## AI Trainer Lite ${{ github.ref_name }}
+
+            简易 AI 模型训练工具 — 无需 GPU，无需机器学习背景
+
+            ### 功能
+            - 📝 文本分类（BERT/DistilBERT 微调）
+            - 📊 表格数据 AutoML（7+ 算法自动选优）
+            - 🖼️ 图像分类（MobileNet/ResNet/EfficientNet 迁移学习）
+            - 🎵 音频分类（Mel 频谱图 + CNN）
+            - 📦 ONNX 跨平台导出
+            - 🔮 批量预测 + 结果导出
+            - 📊 混淆矩阵 / 特征重要性 / 训练曲线可视化
+
+            ### 下载
+            | 平台 | 文件 |
+            |------|------|
+            | Windows x64 | `AI-Trainer-Lite-Windows-x64.zip` |
+            | macOS x64 | `AI-Trainer-Lite-macOS-x64.zip` |
+
+            ### 使用方法
+            1. 下载对应平台的 zip 文件
+            2. 解压到任意目录
+            3. 运行 `AI-Trainer-Lite.exe`（Windows）或 `AI-Trainer-Lite`（macOS）
+
+            > ⚠️ 首次启动可能较慢，需加载 PyTorch 运行时
+          files: |
+            AI-Trainer-Lite-Windows-x64.zip
+            AI-Trainer-Lite-macOS-x64.zip
+          draft: false
+          prerelease: false
