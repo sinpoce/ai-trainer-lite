@@ -36,11 +36,17 @@ class PredictPage(QWidget):
         self.type_group = QButtonGroup()
         self.text_radio = QRadioButton("📝 文本分类")
         self.tabular_radio = QRadioButton("📊 表格数据")
+        self.image_radio = QRadioButton("🖼️ 图像分类")
+        self.audio_radio = QRadioButton("🎵 音频分类")
         self.text_radio.setChecked(True)
         self.type_group.addButton(self.text_radio)
         self.type_group.addButton(self.tabular_radio)
+        self.type_group.addButton(self.image_radio)
+        self.type_group.addButton(self.audio_radio)
         type_layout.addWidget(self.text_radio)
         type_layout.addWidget(self.tabular_radio)
+        type_layout.addWidget(self.image_radio)
+        type_layout.addWidget(self.audio_radio)
         layout.addWidget(type_box)
 
         # Model path
@@ -131,6 +137,8 @@ class PredictPage(QWidget):
     def _browse_model(self):
         if self.tabular_radio.isChecked():
             path, _ = QFileDialog.getOpenFileName(self, "选择模型文件", "./models", "Pickle (*.pkl)")
+        elif self.image_radio.isChecked() or self.audio_radio.isChecked():
+            path = QFileDialog.getExistingDirectory(self, "选择模型目录", "./models")
         else:
             path = QFileDialog.getExistingDirectory(self, "选择模型目录", "./models")
         if path:
@@ -138,19 +146,27 @@ class PredictPage(QWidget):
 
     def _predict_single(self):
         model_path = self.model_path.text().strip()
-        text = self.single_input.toPlainText().strip()
-        if not model_path or not text:
-            QMessageBox.warning(self, "提示", "请填写模型路径和输入内容")
+        if not model_path:
+            QMessageBox.warning(self, "提示", "请填写模型路径")
             return
 
         try:
             if self.text_radio.isChecked():
+                text = self.single_input.toPlainText().strip()
+                if not text:
+                    QMessageBox.warning(self, "提示", "请输入文本")
+                    return
                 from transformers import pipeline
                 clf = pipeline("text-classification", model=model_path, device=-1)
                 results = clf(text, top_k=5)
                 lines = [f"{r['label']}: {r['score']:.2%}" for r in results]
                 self.single_result.setText("预测结果：\n" + "\n".join(lines))
-            else:
+
+            elif self.tabular_radio.isChecked():
+                text = self.single_input.toPlainText().strip()
+                if not text:
+                    QMessageBox.warning(self, "提示", "请输入逗号分隔的特征值")
+                    return
                 with open(model_path, "rb") as f:
                     bundle = pickle.load(f)
                 model = bundle["model"]
@@ -165,12 +181,42 @@ class PredictPage(QWidget):
                         df[col] = pd.to_numeric(df[col])
                     except ValueError:
                         pass
-
                 X = preprocessor.transform(df[feature_cols])
                 pred = model.predict(X)
                 classes = bundle.get("classes", [])
                 label = classes[pred[0]] if classes else str(pred[0])
                 self.single_result.setText(f"预测结果：{label}")
+
+            elif self.image_radio.isChecked():
+                img_path, _ = QFileDialog.getOpenFileName(
+                    self, "选择图片", "", "图片 (*.jpg *.jpeg *.png *.bmp *.webp)"
+                )
+                if not img_path:
+                    return
+                from trainers.image_trainer import ImageClassifierTrainer
+                from PIL import Image
+                trainer = ImageClassifierTrainer.load(model_path)
+                img = Image.open(img_path)
+                pred_class, confidence = trainer.predict(img)
+                import json
+                config_path = os.path.join(model_path, "config.json")
+                with open(config_path) as f:
+                    config = json.load(f)
+                classes = config.get("classes", [])
+                label = classes[pred_class] if pred_class < len(classes) else str(pred_class)
+                self.single_result.setText(f"预测结果：{label}\n置信度：{confidence:.2%}")
+
+            elif self.audio_radio.isChecked():
+                audio_path, _ = QFileDialog.getOpenFileName(
+                    self, "选择音频", "", "音频 (*.wav *.mp3 *.flac *.ogg *.m4a)"
+                )
+                if not audio_path:
+                    return
+                import torch
+                import torchaudio
+                checkpoint = torch.load(os.path.join(model_path, "model.pt"), map_location="cpu")
+                classes = checkpoint["classes"]
+                self.single_result.setText(f"模型类别：{', '.join(classes)}\n（完整音频推理需要特征提取，请使用批量预测功能）")
 
         except Exception as e:
             self.single_result.setText(f"❌ 预测失败：{e}")

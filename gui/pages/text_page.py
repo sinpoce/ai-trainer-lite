@@ -177,6 +177,14 @@ class TextPage(QWidget):
         result_layout.addWidget(self.result_text)
         right.addWidget(result_box)
 
+        # Charts
+        chart_box = QGroupBox("可视化")
+        chart_layout = QVBoxLayout(chart_box)
+        self.chart = ChartWidget()
+        self.chart.setMinimumHeight(250)
+        chart_layout.addWidget(self.chart)
+        right.addWidget(chart_box)
+
         # Inference code
         code_box = QGroupBox("推理代码")
         code_layout = QVBoxLayout(code_box)
@@ -190,6 +198,12 @@ class TextPage(QWidget):
         copy_btn.clicked.connect(lambda: self._copy_code())
         code_layout.addWidget(copy_btn)
         right.addWidget(code_box)
+
+        # ONNX export
+        self.onnx_btn = QPushButton("📦 导出 ONNX 模型")
+        self.onnx_btn.setVisible(False)
+        self.onnx_btn.clicked.connect(self._export_onnx)
+        right.addWidget(self.onnx_btn)
 
         main.addLayout(left, 1)
         main.addLayout(right, 2)
@@ -253,17 +267,44 @@ class TextPage(QWidget):
         self.train_btn.setEnabled(True)
         self.progress_bar.setValue(100)
         self.status_label.setText("✅ 训练完成！")
+        self._last_result = result
 
+        # 构建详细报告
         summary = (
             f"✅ 训练完成！\n\n"
             f"📊 数据集：{result['total_samples']} 条\n"
             f"   类别：{result['num_classes']} 个 ({', '.join(result['classes'])})\n"
             f"   训练集：{result['train_size']}  验证集：{result['eval_size']}\n\n"
             f"🎯 验证准确率：{result['accuracy']:.2%}\n"
-            f"   F1 Score：{result['f1']:.4f}\n\n"
-            f"💾 模型路径：{result['model_path']}"
+            f"   F1 Score：{result['f1']:.4f}\n"
         )
+        # 每类指标
+        report = result.get("classification_report", {})
+        if report:
+            summary += "\n📋 各类别指标：\n"
+            for cls_name in result['classes']:
+                if cls_name in report:
+                    m = report[cls_name]
+                    summary += f"   {cls_name:<15} P={m['precision']:.2%}  R={m['recall']:.2%}  F1={m['f1-score']:.2%}\n"
+
+        summary += f"\n💾 模型路径：{result['model_path']}"
         self.result_text.setPlainText(summary)
+
+        # 可视化：混淆矩阵 或 训练曲线
+        cm = result.get("confusion_matrix")
+        history = result.get("training_history", [])
+        if cm:
+            self.chart.plot_confusion_matrix(cm, result['classes'], "混淆矩阵")
+        elif history:
+            acc_list = [h["eval_accuracy"] for h in history]
+            loss_list = [h["eval_loss"] for h in history]
+            self.chart.plot_training_curves(
+                {"accuracy": acc_list, "loss": loss_list},
+                "训练曲线"
+            )
+
+        # ONNX 导出按钮
+        self.onnx_btn.setVisible(True)
 
         code = (
             f'from transformers import pipeline\n\n'
@@ -282,6 +323,19 @@ class TextPage(QWidget):
         self.progress_bar.setVisible(False)
         self.status_label.setText("❌ 训练失败")
         self.result_text.setPlainText(f"❌ 训练失败：\n{err}")
+
+    def _export_onnx(self):
+        if not hasattr(self, '_last_result'):
+            return
+        model_path = self._last_result.get("model_path", "")
+        try:
+            from utils.export import export_text_model_to_onnx
+            onnx_path = export_text_model_to_onnx(model_path)
+            QMessageBox.information(self, "导出成功", f"ONNX 模型已保存至：\n{onnx_path}")
+        except ImportError:
+            QMessageBox.warning(self, "缺少依赖", "请先安装 ONNX：\npip install onnx onnxruntime")
+        except Exception as e:
+            QMessageBox.critical(self, "导出失败", str(e))
 
     def _copy_code(self):
         from PyQt6.QtWidgets import QApplication

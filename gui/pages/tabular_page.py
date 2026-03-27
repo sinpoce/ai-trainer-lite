@@ -245,13 +245,18 @@ class TabularPage(QWidget):
         lines.append(f"💾 模型：{result['model_path']}")
         self.result_text.setPlainText("\n".join(lines))
 
-        # Chart
+        # Chart: 算法对比
         names = []
         scores = []
         for algo, metrics in sorted(result["all_results"].items(), key=lambda x: x[1]["score"]):
             names.append(algo)
             scores.append(metrics["score"])
         self.chart.plot_comparison(names, scores, "算法得分对比")
+
+        # 特征重要性图（如果有）
+        fi = result.get("feature_importance", {})
+        if fi:
+            self.chart.plot_feature_importance(fi, "特征重要性 Top 10")
 
     def _on_error(self, err):
         self.train_btn.setEnabled(True)

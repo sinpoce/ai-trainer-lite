@@ -49,7 +49,7 @@ class TextClassifierTrainer:
             )
             from sklearn.model_selection import train_test_split
             from sklearn.preprocessing import LabelEncoder
-            from sklearn.metrics import accuracy_score, f1_score
+            from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
             from torch.utils.data import Dataset
         except ImportError as e:
             raise ImportError(f"缺少依赖：{e}\n请运行: pip install transformers torch scikit-learn") from e
@@ -158,6 +158,25 @@ class TextClassifierTrainer:
 
         # ── 5. 评估 ────────────────────────────────────────────────────
         eval_result = trainer.evaluate()
+
+        # 计算混淆矩阵和每类指标
+        _progress(0.95, desc="📊 计算评估指标...")
+        predictions = trainer.predict(eval_dataset)
+        preds = np.argmax(predictions.predictions, axis=-1)
+        labels = predictions.label_ids
+        cm = confusion_matrix(labels, preds)
+        report = classification_report(labels, preds, target_names=classes, output_dict=True)
+
+        # 提取训练历史
+        training_history = []
+        for entry in trainer.state.log_history:
+            if "eval_accuracy" in entry:
+                training_history.append({
+                    "epoch": entry.get("epoch", 0),
+                    "eval_accuracy": entry["eval_accuracy"],
+                    "eval_loss": entry.get("eval_loss", 0),
+                })
+
         _progress(1.0, desc="✅ 完成！")
 
         return {
@@ -170,5 +189,8 @@ class TextClassifierTrainer:
             "num_classes": num_classes,
             "classes": classes,
             "training_time": train_result.metrics.get("train_runtime", 0),
+            "confusion_matrix": cm.tolist(),
+            "classification_report": report,
+            "training_history": training_history,
             "plot": None,
         }

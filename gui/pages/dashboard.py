@@ -66,10 +66,12 @@ class DashboardPage(QWidget):
 
         model_count = self._count_models()
 
+        model_size = self._models_disk_usage()
+
         stats_layout.addWidget(StatCard(str(model_count), "已训练模型", "🧠"))
-        stats_layout.addWidget(StatCard("3", "支持任务类型", "📦"))
+        stats_layout.addWidget(StatCard("4", "支持任务类型", "📦"))
         stats_layout.addWidget(StatCard("12+", "内置算法", "⚡"))
-        stats_layout.addWidget(StatCard("CPU", "运行模式", "💻"))
+        stats_layout.addWidget(StatCard(model_size, "模型占用", "💾"))
 
         layout.addLayout(stats_layout)
 
@@ -122,6 +124,18 @@ class DashboardPage(QWidget):
         except ImportError:
             info.append(("PyTorch", "未安装"))
 
+        try:
+            import onnx
+            info.append(("ONNX 导出", f"✓ v{onnx.__version__}"))
+        except ImportError:
+            info.append(("ONNX 导出", "未安装"))
+
+        try:
+            import transformers
+            info.append(("Transformers", transformers.__version__))
+        except ImportError:
+            info.append(("Transformers", "未安装"))
+
         for i, (k, v) in enumerate(info):
             key_lbl = QLabel(k)
             key_lbl.setStyleSheet("color: #a0a0c0; font-weight: bold;")
@@ -139,3 +153,18 @@ class DashboardPage(QWidget):
             return 0
         return sum(1 for f in os.listdir(model_dir)
                    if os.path.isdir(os.path.join(model_dir, f)) or f.endswith(".pkl"))
+
+    def _models_disk_usage(self) -> str:
+        model_dir = "./models"
+        if not os.path.exists(model_dir):
+            return "0 MB"
+        total = sum(
+            os.path.getsize(os.path.join(dp, f))
+            for dp, _, fns in os.walk(model_dir) for f in fns
+        )
+        if total < 1024 * 1024:
+            return f"{total / 1024:.0f} KB"
+        elif total < 1024 * 1024 * 1024:
+            return f"{total / (1024 * 1024):.0f} MB"
+        else:
+            return f"{total / (1024 * 1024 * 1024):.1f} GB"

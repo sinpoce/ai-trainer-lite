@@ -2,12 +2,13 @@
 
 import os
 import json
+import glob
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QGridLayout, QLineEdit, QCheckBox, QComboBox,
-    QSpinBox, QMessageBox,
+    QSpinBox, QMessageBox, QFileDialog, QListWidget, QListWidgetItem,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 CONFIG_PATH = "./config.json"
 
@@ -77,21 +78,41 @@ class SettingsPage(QWidget):
 
         layout.addWidget(gen_box)
 
-        # Export
-        export_box = QGroupBox("模型导出")
+        # ONNX Export
+        export_box = QGroupBox("ONNX 模型导出")
         export_layout = QVBoxLayout(export_box)
 
         onnx_info = QLabel(
-            "ONNX 导出允许你将训练好的模型转换为跨平台格式，\n"
-            "可在 C++/Java/JavaScript 等环境中运行推理。"
+            "将训练好的模型转换为 ONNX 格式，可在 C++ / Java / JavaScript / C# 等环境中运行推理。"
         )
         onnx_info.setStyleSheet("color: #a0a0c0;")
         onnx_info.setWordWrap(True)
         export_layout.addWidget(onnx_info)
 
-        onnx_btn = QPushButton("📦 安装 ONNX 导出支持")
-        onnx_btn.clicked.connect(self._install_onnx)
-        export_layout.addWidget(onnx_btn)
+        # 模型选择
+        model_select_layout = QHBoxLayout()
+        self.export_model_path = QLineEdit()
+        self.export_model_path.setPlaceholderText("选择要导出的模型路径...")
+        browse_export_btn = QPushButton("📂 浏览")
+        browse_export_btn.clicked.connect(self._browse_export_model)
+        model_select_layout.addWidget(self.export_model_path)
+        model_select_layout.addWidget(browse_export_btn)
+        export_layout.addLayout(model_select_layout)
+
+        export_btns = QHBoxLayout()
+        onnx_export_btn = QPushButton("📦 导出为 ONNX")
+        onnx_export_btn.setObjectName("primary_btn")
+        onnx_export_btn.clicked.connect(self._export_onnx)
+        export_btns.addWidget(onnx_export_btn)
+
+        onnx_install_btn = QPushButton("⬇️ 安装 ONNX 依赖")
+        onnx_install_btn.clicked.connect(self._install_onnx)
+        export_btns.addWidget(onnx_install_btn)
+        export_layout.addLayout(export_btns)
+
+        self.export_status = QLabel("")
+        self.export_status.setStyleSheet("color: #55efc4;")
+        export_layout.addWidget(self.export_status)
 
         layout.addWidget(export_box)
 
@@ -99,9 +120,10 @@ class SettingsPage(QWidget):
         about_box = QGroupBox("关于")
         about_layout = QVBoxLayout(about_box)
         about_text = QLabel(
-            "AI Trainer Lite v2.0\n"
+            "AI Trainer Lite v2.1\n"
             "简易 AI 模型训练工具\n\n"
             "支持：文本分类、表格 AutoML、图像分类、音频分类\n"
+            "导出：ONNX 跨平台部署 | PyInstaller EXE 打包\n"
             "GitHub: github.com/sinpoce/ai-trainer-lite"
         )
         about_text.setStyleSheet("color: #a0a0c0;")
@@ -125,8 +147,41 @@ class SettingsPage(QWidget):
         save_config(self.config)
         QMessageBox.information(self, "成功", "设置已保存")
 
+    def _browse_export_model(self):
+        path = QFileDialog.getExistingDirectory(self, "选择模型目录", "./models")
+        if not path:
+            path, _ = QFileDialog.getOpenFileName(self, "选择模型文件", "./models", "Pickle (*.pkl)")
+        if path:
+            self.export_model_path.setText(path)
+
+    def _export_onnx(self):
+        model_path = self.export_model_path.text().strip()
+        if not model_path:
+            QMessageBox.warning(self, "提示", "请先选择要导出的模型")
+            return
+        try:
+            from utils.export import auto_export
+            self.export_status.setText("⏳ 正在导出...")
+            self.export_status.repaint()
+            onnx_path = auto_export(model_path)
+            self.export_status.setText(f"✅ 导出成功：{onnx_path}")
+            QMessageBox.information(self, "导出成功", f"ONNX 模型已保存至：\n{onnx_path}")
+        except ImportError as e:
+            self.export_status.setText("❌ 缺少依赖")
+            QMessageBox.warning(self, "缺少依赖",
+                f"导出需要额外依赖：\n\n{e}\n\n请运行：pip install onnx onnxruntime skl2onnx")
+        except Exception as e:
+            self.export_status.setText(f"❌ 导出失败")
+            QMessageBox.critical(self, "导出失败", str(e))
+
     def _install_onnx(self):
-        QMessageBox.information(
-            self, "安装 ONNX",
-            "请在终端运行：\n\npip install onnx onnxruntime\n\n安装完成后即可在训练页面使用 ONNX 导出功能。"
-        )
+        import subprocess, sys
+        reply = QMessageBox.question(self, "安装 ONNX",
+            "即将安装 onnx, onnxruntime, skl2onnx 三个包。\n确认安装？")
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install",
+                    "onnx", "onnxruntime", "skl2onnx"])
+                QMessageBox.information(self, "成功", "ONNX 依赖安装完成！")
+            except Exception as e:
+                QMessageBox.critical(self, "安装失败", str(e))
