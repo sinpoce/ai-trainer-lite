@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.DS_Store
+models/
+*.pkl
+*.pt
+check_results.json
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+wandb/
+runs/
+outputs/

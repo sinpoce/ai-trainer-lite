@@ -1,0 +1,20 @@
+# Web UI
+gradio>=4.0.0
+
+# 文本分类 (Text Classification)
+transformers>=4.40.0
+torch>=2.0.0
+datasets>=2.18.0
+accelerate>=0.27.0
+
+# 表格数据 (Tabular / AutoML)
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+
+# 图像分类 (Image Classification)
+torchvision>=0.17.0
+Pillow>=10.0.0
+
+# 工具
+numpy>=1.24.0
+pandas>=2.0.0

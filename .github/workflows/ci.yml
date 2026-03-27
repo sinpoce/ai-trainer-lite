@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install scikit-learn xgboost numpy pandas
+
+      - name: Test tabular trainer (no GPU required)
+        run: |
+          python - <<'EOF'
+          import pandas as pd
+          from trainers.tabular_trainer import TabularTrainer
+
+          df = pd.read_csv("examples/iris.csv")
+          trainer = TabularTrainer(task_type="classification", algorithms=["RandomForest", "LogisticRegression"])
+          result = trainer.train(df, target_col="species", test_size=0.2)
+          assert result["best_score"] > 0.8, f"Score too low: {result['best_score']}"
+          print(f"✅ Tabular trainer OK: {result['best_algorithm']} = {result['best_score']:.4f}")
+          EOF
+
+      - name: Lint check
+        run: |
+          pip install pyflakes
+          python -m pyflakes trainers/ app.py || true
