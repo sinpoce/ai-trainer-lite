@@ -1,40 +1,54 @@
 <div align="center">
 
-# 🤖 AI Trainer Lite
+# AI Trainer Lite
 
 **3 步训练你的专属 AI 模型 · 无需 GPU · 无需机器学习背景**
 
 [![Stars](https://img.shields.io/github/stars/sinpoce/ai-trainer-lite?style=for-the-badge&color=violet)](https://github.com/sinpoce/ai-trainer-lite/stargazers)
 [![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python)](https://python.org)
-[![Gradio](https://img.shields.io/badge/Gradio-UI-orange?style=for-the-badge)](https://gradio.app)
+[![PyQt6](https://img.shields.io/badge/PyQt6-Desktop-green?style=for-the-badge)](https://doc.qt.io/qtforpython-6/)
+[![Gradio](https://img.shields.io/badge/Gradio-Web_UI-orange?style=for-the-badge)](https://gradio.app)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-[English](#english) · [快速开始](#-快速开始) · [功能演示](#-功能演示) · [使用文档](#-使用文档)
-
-<img src="https://github.com/sinpoce/ai-trainer-lite/assets/preview.png" alt="AI Trainer Lite Screenshot" width="800"/>
+[English](#english) · [快速开始](#-快速开始) · [桌面客户端](#-桌面客户端) · [使用文档](#-使用文档)
 
 </div>
 
 ---
 
-**AI Trainer Lite** 是一个开箱即用的 AI 模型训练工具，提供可视化 Web 界面，让任何人都能训练自己的 AI 模型——不需要写代码，不需要 GPU，不需要懂机器学习。
+**AI Trainer Lite** 是一个开箱即用的 AI 模型训练工具，提供 **桌面 GUI 客户端** 和 **Web 界面** 两种使用方式，让任何人都能训练自己的 AI 模型——不需要写代码，不需要 GPU，不需要懂机器学习。
 
 ---
 
-## ✨ 功能特性
+## v2.0 新功能
+
+- **PyQt6 桌面客户端** — 原生窗口体验，深色主题，侧边栏导航
+- **音频分类** — 基于 Mel 频谱图 + CNN，支持语音命令、环境音识别
+- **批量预测** — 加载已训练模型，对新数据批量推理并导出
+- **训练历史管理** — 查看、对比、清理所有已训练模型
+- **实时训练曲线** — 嵌入式 Matplotlib 图表，训练过程可视化
+- **算法对比图** — 表格 AutoML 自动生成算法性能对比柱状图
+- **全局设置** — 可配置默认参数、模型目录
+
+---
+
+## 功能特性
 
 | 功能 | 说明 |
 |------|------|
 | 📝 **文本分类** | 基于 DistilBERT / BERT 微调，支持情感分析、主题分类、意图识别等 |
 | 📊 **表格数据 AutoML** | 自动尝试 7 种算法，找到最优模型，展示特征重要性 |
-| 🖼️ **图像分类** | 迁移学习（MobileNet / ResNet / EfficientNet），支持自定义类别 |
-| 🔮 **推理测试** | 训练完直接测试，无需切换工具 |
+| 🖼️ **图像分类** | 迁移学习（MobileNet / ResNet / EfficientNet），支持数据增强 |
+| 🎵 **音频分类** | Mel 频谱图 / MFCC + CNN，支持 WAV/MP3/FLAC/OGG |
+| 🔮 **批量预测** | 加载模型对新数据批量推理，支持导出 CSV |
+| 📋 **训练历史** | 管理已训练模型，查看详情，一键清理 |
+| 📈 **可视化** | 训练曲线、算法对比、特征重要性、混淆矩阵 |
 | 💾 **代码导出** | 自动生成推理代码，一键复制使用 |
 | ⚡ **CPU 友好** | 所有模型均可在 CPU 上运行，无 GPU 也能用 |
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ### 安装
 
@@ -44,17 +58,37 @@ cd ai-trainer-lite
 pip install -r requirements.txt
 ```
 
-### 启动
+### 桌面客户端（推荐）
+
+```bash
+python run_gui.py
+```
+
+### Web 界面
 
 ```bash
 python app.py
+# 浏览器访问 http://localhost:7860
 ```
-
-浏览器访问 `http://localhost:7860` 即可使用。
 
 ---
 
-## 📖 使用文档
+## 桌面客户端
+
+v2.0 新增原生桌面 GUI 客户端，基于 PyQt6 构建：
+
+- **仪表盘** — 系统概览、已训练模型统计、功能入口
+- **文本分类** — 上传 CSV，选择模型，一键训练
+- **表格 AutoML** — 自动算法对比，实时柱状图
+- **图像分类** — 文件夹浏览器，训练曲线实时绘制
+- **音频分类** — 支持多种音频格式，Mel/MFCC 特征
+- **批量预测** — 单条和批量推理，结果导出 CSV
+- **训练历史** — 模型管理，查看/删除/对比
+- **设置** — 默认参数、模型目录配置
+
+---
+
+## 使用文档
 
 ### 📝 文本分类
 
@@ -69,89 +103,76 @@ text,label
 "还可以，一般般",neutral
 ```
 
-**步骤：**
-1. 上传 CSV 文件
-2. 填写文本列名和标签列名
-3. 选择基础模型（中文推荐 `bert-base-chinese`）
-4. 点击「开始训练」
-
 **支持模型：**
-- `distilbert-base-uncased` - 英文，速度最快（推荐）
-- `bert-base-uncased` - 英文，精度更高
-- `bert-base-chinese` - 中文专用
-- `distilbert-base-multilingual-cased` - 多语言通用
 
----
+| 模型 | 语言 | 参数量 | 推荐场景 |
+|------|------|--------|----------|
+| distilbert-base-uncased | 英文 | 66M | 速度优先 |
+| bert-base-uncased | 英文 | 110M | 精度优先 |
+| bert-base-chinese | 中文 | 110M | 中文文本 |
+| distilbert-base-multilingual-cased | 多语言 | 135M | 多语言 |
+| roberta-base | 英文 | 125M | 最高精度 |
 
 ### 📊 表格数据 AutoML
 
 适合场景：房价预测、客户流失、疾病预测、销量预测...
 
-**数据格式（CSV）：**
+自动尝试以下算法：
 
-```csv
-age,income,education,bought
-25,50000,bachelor,yes
-42,80000,master,yes
-19,20000,high_school,no
-```
-
-**步骤：**
-1. 上传 CSV 文件
-2. 填写目标列名（要预测的列）
-3. 选择分类或回归任务
-4. 点击「开始训练（自动选最优）」
-
-工具会自动尝试以下算法并选择最优：
-- Logistic Regression
-- Random Forest 🏆（通常最优）
-- Gradient Boosting
-- XGBoost
-- SVM / KNN / Naive Bayes
-
----
+| 算法 | 分类 | 回归 | 特点 |
+|------|------|------|------|
+| Logistic/Linear Regression | ✓ | ✓ | 基准线 |
+| Random Forest | ✓ | ✓ | 通常最优 |
+| Gradient Boosting | ✓ | ✓ | 高精度 |
+| XGBoost | ✓ | ✓ | 高效 |
+| SVM/SVR | ✓ | ✓ | 小数据集 |
+| KNN | ✓ | - | 简单 |
+| Naive Bayes | ✓ | - | 文本 |
 
 ### 🖼️ 图像分类
 
-适合场景：商品识别、缺陷检测、人脸识别、植物分类...
-
-**文件夹结构：**
-
+文件夹结构：
 ```
 my_dataset/
 ├── 猫/
 │   ├── cat001.jpg
-│   ├── cat002.jpg
 │   └── ...
 ├── 狗/
-│   ├── dog001.jpg
 │   └── ...
 └── 鸟/
     └── ...
 ```
 
-> 每个类别至少需要 10 张图片，建议 50+ 张效果更好
+| 架构 | 参数量 | CPU 速度 | 精度 |
+|------|--------|---------|------|
+| MobileNet V3 Small | 1.5M | 快 | 良好 |
+| EfficientNet B0 | 5.3M | 中等 | 优秀 |
+| ResNet18 | 11M | 中等 | 良好 |
+| VGG11 | 128M | 慢 | 优秀 |
 
-**步骤：**
-1. 按上方结构准备图片（文件夹名即类别名）
-2. 填入数据集路径
-3. 选择模型架构（CPU 用户推荐 MobileNet V3 Small）
-4. 点击「开始训练」
+### 🎵 音频分类
 
-**模型对比：**
+文件夹结构：
+```
+audio_dataset/
+├── 语音命令_开灯/
+│   ├── sample001.wav
+│   └── ...
+├── 语音命令_关灯/
+│   └── ...
+└── 背景噪音/
+    └── ...
+```
 
-| 架构 | 参数量 | CPU 训练速度 | 精度 |
-|------|--------|------------|------|
-| MobileNet V3 Small | 1.5M | ⚡ 快 | 良好 |
-| EfficientNet B0 | 5.3M | 🟡 中等 | 优秀 |
-| ResNet18 | 11M | 🟡 中等 | 良好 |
-| VGG11 | 128M | 🐢 慢 | 优秀 |
+支持格式：WAV, MP3, FLAC, OGG, M4A
+
+特征类型：
+- **Mel Spectrogram** — 适合通用音频分类
+- **MFCC** — 适合语音识别
 
 ---
 
-## 🐍 Python API
-
-除了 Web UI，也可以直接在代码中使用：
+## Python API
 
 ### 文本分类
 
@@ -160,31 +181,20 @@ import pandas as pd
 from trainers import TextClassifierTrainer
 
 df = pd.read_csv("my_data.csv")
-
-trainer = TextClassifierTrainer(
-    model_name="distilbert-base-uncased",
-    epochs=3,
-    batch_size=16,
-)
-
+trainer = TextClassifierTrainer(model_name="bert-base-chinese", epochs=3)
 result = trainer.train(df, text_col="text", label_col="label")
-print(f"验证准确率: {result['accuracy']:.2%}")
-print(f"模型路径: {result['model_path']}")
+print(f"准确率: {result['accuracy']:.2%}")
 ```
 
 ### 表格数据
 
 ```python
-import pandas as pd
 from trainers import TabularTrainer
 
 df = pd.read_csv("my_data.csv")
-
 trainer = TabularTrainer(task_type="classification")
-result = trainer.train(df, target_col="species")
-
-print(f"最佳算法: {result['best_algorithm']}")
-print(f"最佳得分: {result['best_score']:.4f}")
+result = trainer.train(df, target_col="target")
+print(f"最佳: {result['best_algorithm']} ({result['best_score']:.4f})")
 ```
 
 ### 图像分类
@@ -192,33 +202,58 @@ print(f"最佳得分: {result['best_score']:.4f}")
 ```python
 from trainers import ImageClassifierTrainer
 
-trainer = ImageClassifierTrainer(
-    model_arch="mobilenet_v3_small (轻量 1.5M, 推荐CPU)",
-    epochs=10,
-)
+trainer = ImageClassifierTrainer(epochs=10)
 result = trainer.train(folder="./my_dataset")
-print(f"验证准确率: {result['best_acc']:.2%}")
+print(f"准确率: {result['best_acc']:.2%}")
+```
 
-# 推理
-from PIL import Image
-loaded = ImageClassifierTrainer.load(result["model_path"])
-img = Image.open("test.jpg")
-class_idx, confidence = loaded.predict(img)
-print(f"预测: {result['classes'][class_idx]}，置信度: {confidence:.2%}")
+### 音频分类
+
+```python
+from trainers.audio_trainer import AudioClassifierTrainer
+
+trainer = AudioClassifierTrainer(feature_type="mel_spectrogram", epochs=20)
+result = trainer.train(folder="./audio_dataset")
+print(f"准确率: {result['best_acc']:.2%}")
 ```
 
 ---
 
-## 🗂️ 示例数据集
+## 项目结构
 
-| 数据集 | 任务 | 说明 |
-|--------|------|------|
-| `examples/sentiment.csv` | 文本分类 | 英文情感分析（30条，正/负/中性） |
-| `examples/iris.csv` | 表格分类 | 经典鸢尾花分类（150条，3类） |
+```
+ai-trainer-lite/
+├── run_gui.py              # 桌面 GUI 入口
+├── app.py                  # Web UI 入口 (Gradio)
+├── gui/                    # PyQt6 桌面客户端
+│   ├── main_window.py      # 主窗口
+│   ├── styles.py           # 深色主题样式表
+│   ├── pages/              # 各功能页面
+│   │   ├── dashboard.py    # 仪表盘
+│   │   ├── text_page.py    # 文本分类
+│   │   ├── tabular_page.py # 表格 AutoML
+│   │   ├── image_page.py   # 图像分类
+│   │   ├── audio_page.py   # 音频分类
+│   │   ├── predict_page.py # 批量预测
+│   │   ├── history_page.py # 训练历史
+│   │   └── settings_page.py# 设置
+│   └── widgets/            # 可复用组件
+│       ├── sidebar.py      # 侧边栏导航
+│       └── chart_widget.py # 图表组件
+├── trainers/               # 训练器核心
+│   ├── text_trainer.py     # 文本分类 (BERT)
+│   ├── tabular_trainer.py  # 表格 AutoML
+│   ├── image_trainer.py    # 图像分类 (CNN)
+│   └── audio_trainer.py    # 音频分类 (Mel+CNN)
+├── examples/               # 示例数据集
+│   ├── sentiment.csv       # 情感分析示例
+│   └── iris.csv            # 鸢尾花分类示例
+└── requirements.txt
+```
 
 ---
 
-## 📋 系统要求
+## 系统要求
 
 - Python 3.9+
 - RAM：4GB+（文本模型需要 4-8GB）
@@ -227,18 +262,18 @@ print(f"预测: {result['classes'][class_idx]}，置信度: {confidence:.2%}")
 
 ---
 
-## 🤝 贡献
+## 贡献
 
 欢迎 PR！可以添加：
 - 新的模型架构支持
 - 更多示例数据集
-- 训练曲线可视化
-- 模型量化/压缩功能
 - ONNX 导出支持
+- 模型量化/压缩
+- 更多训练任务（目标检测、NER...）
 
 ---
 
-## 📄 许可证
+## 许可证
 
 MIT License
 
@@ -246,7 +281,7 @@ MIT License
 
 <div align="center">
 
-如果这个项目对你有帮助，请点 **⭐ Star** 支持！
+如果这个项目对你有帮助，请点 **Star** 支持！
 
 **[GitHub Issues](https://github.com/sinpoce/ai-trainer-lite/issues)** · **[Discussions](https://github.com/sinpoce/ai-trainer-lite/discussions)**
 

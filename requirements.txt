@@ -1,19 +1,30 @@
-# Web UI
+# GUI 桌面客户端
+PyQt6>=6.5.0
+matplotlib>=3.7.0
+
+# Web UI (可选)
 gradio>=4.0.0
 
-# 文本分类 (Text Classification)
+# 文本分类
 transformers>=4.40.0
 torch>=2.0.0
 datasets>=2.18.0
 accelerate>=0.27.0
 
-# 表格数据 (Tabular / AutoML)
+# 表格数据 AutoML
 scikit-learn>=1.4.0
 xgboost>=2.0.0
 
-# 图像分类 (Image Classification)
+# 图像分类
 torchvision>=0.17.0
 Pillow>=10.0.0
+
+# 音频分类
+torchaudio>=2.0.0
+
+# ONNX 导出 (可选)
+# onnx>=1.15.0
+# onnxruntime>=1.17.0
 
 # 工具
 numpy>=1.24.0
