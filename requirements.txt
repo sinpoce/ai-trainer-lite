@@ -22,9 +22,11 @@ Pillow>=10.0.0
 # 音频分类
 torchaudio>=2.0.0
 
-# ONNX 导出 (可选)
+# ONNX 导出 (可选，按需安装)
+# pip install onnx onnxruntime skl2onnx
 # onnx>=1.15.0
 # onnxruntime>=1.17.0
+# skl2onnx>=1.16.0
 
 # 工具
 numpy>=1.24.0

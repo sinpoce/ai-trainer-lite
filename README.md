@@ -20,15 +20,17 @@
 
 ---
 
-## v2.0 新功能
+## v2.1 新功能
 
+- **EXE 打包** — 一键打包为 Windows / macOS 桌面应用，无需安装 Python
+- **ONNX 导出** — 支持将所有类型模型导出为 ONNX 格式，跨平台部署
+- **Gradio 音频分类** — Web UI 新增音频分类和批量预测 Tab
 - **PyQt6 桌面客户端** — 原生窗口体验，深色主题，侧边栏导航
 - **音频分类** — 基于 Mel 频谱图 + CNN，支持语音命令、环境音识别
 - **批量预测** — 加载已训练模型，对新数据批量推理并导出
 - **训练历史管理** — 查看、对比、清理所有已训练模型
 - **实时训练曲线** — 嵌入式 Matplotlib 图表，训练过程可视化
 - **算法对比图** — 表格 AutoML 自动生成算法性能对比柱状图
-- **全局设置** — 可配置默认参数、模型目录
 
 ---
 
@@ -225,6 +227,8 @@ print(f"准确率: {result['best_acc']:.2%}")
 ai-trainer-lite/
 ├── run_gui.py              # 桌面 GUI 入口
 ├── app.py                  # Web UI 入口 (Gradio)
+├── build.py                # 一键打包脚本
+├── ai_trainer.spec         # PyInstaller 配置
 ├── gui/                    # PyQt6 桌面客户端
 │   ├── main_window.py      # 主窗口
 │   ├── styles.py           # 深色主题样式表
@@ -245,10 +249,16 @@ ai-trainer-lite/
 │   ├── tabular_trainer.py  # 表格 AutoML
 │   ├── image_trainer.py    # 图像分类 (CNN)
 │   └── audio_trainer.py    # 音频分类 (Mel+CNN)
+├── utils/                  # 工具模块
+│   └── export.py           # ONNX 模型导出
+├── scripts/                # 打包脚本
+│   ├── build_exe.bat       # Windows 打包
+│   └── build_mac.sh        # macOS 打包
 ├── examples/               # 示例数据集
 │   ├── sentiment.csv       # 情感分析示例
 │   └── iris.csv            # 鸢尾花分类示例
-└── requirements.txt
+├── requirements.txt        # 运行依赖
+└── requirements-build.txt  # 构建依赖
 ```
 
 ---
@@ -262,12 +272,59 @@ ai-trainer-lite/
 
 ---
 
+## 打包为 EXE
+
+### Windows
+
+```bash
+# 方式一：运行打包脚本
+scripts\build_exe.bat
+
+# 方式二：命令行
+pip install pyinstaller
+python build.py
+```
+
+### macOS
+
+```bash
+bash scripts/build_mac.sh
+```
+
+打包后的应用位于 `dist/AI-Trainer-Lite/` 目录。
+
+---
+
+## ONNX 导出
+
+将训练好的模型导出为 ONNX 格式，支持在 C++ / Java / JavaScript / C# 等环境中运行推理：
+
+```bash
+# 安装 ONNX 依赖
+pip install onnx onnxruntime skl2onnx
+```
+
+```python
+from utils.export import auto_export
+
+# 自动检测模型类型并导出
+onnx_path = auto_export("./models/my-model")
+print(f"ONNX 模型已保存至: {onnx_path}")
+```
+
+支持导出：
+- 文本分类模型（BERT/DistilBERT → ONNX）
+- 表格数据模型（scikit-learn → ONNX，需要 skl2onnx）
+- 图像分类模型（PyTorch → ONNX）
+- 音频分类模型（PyTorch → ONNX）
+
+---
+
 ## 贡献
 
 欢迎 PR！可以添加：
 - 新的模型架构支持
 - 更多示例数据集
-- ONNX 导出支持
 - 模型量化/压缩
 - 更多训练任务（目标检测、NER...）
 

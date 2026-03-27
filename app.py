@@ -1,15 +1,17 @@
 """
 AI Trainer Lite - 简易 AI 模型训练工具
-支持文本分类、图像分类、表格数据分类，无需 GPU，开箱即用
+支持文本分类、图像分类、表格数据分类、音频分类，无需 GPU，开箱即用
 """
 
 import gradio as gr
 import pandas as pd
+import pickle
 import json
 import os
 from trainers.text_trainer import TextClassifierTrainer
 from trainers.tabular_trainer import TabularTrainer
 from trainers.image_trainer import ImageClassifierTrainer
+from trainers.audio_trainer import AudioClassifierTrainer
 
 # ─── 文本分类 ────────────────────────────────────────────────────────────────
 
@@ -219,6 +221,100 @@ print(f"预测类别: {{classes[pred_class]}}，置信度: {{confidence:.2%}}")
         return f"❌ 训练失败：{str(e)}\n\n{traceback.format_exc()}", ""
 
 
+# ─── 音频分类 ────────────────────────────────────────────────────────────────
+
+def run_audio_training(folder, feature_type, epochs, batch_size, lr, sample_rate, progress=gr.Progress()):
+    if not folder:
+        return "❌ 请输入数据集路径", ""
+    if not os.path.isdir(folder):
+        return f"❌ 路径不存在：{folder}", ""
+
+    try:
+        trainer = AudioClassifierTrainer(
+            feature_type=feature_type,
+            epochs=int(epochs),
+            batch_size=int(batch_size),
+            lr=float(lr),
+            sample_rate=int(sample_rate),
+        )
+        progress(0.1, desc="📂 扫描音频文件...")
+        result = trainer.train(folder=folder, progress_callback=progress)
+
+        summary = f"""✅ 训练完成！
+
+📊 数据集：
+  - 类别：{result['num_classes']}（{', '.join(result['classes'])}）
+  - 训练：{result['train_size']}  验证：{result['eval_size']}
+
+🎯 最佳性能（第 {result['best_epoch']} 轮）：
+  - 验证准确率：{result['best_acc']:.2%}
+
+💾 模型保存至：{result['model_path']}"""
+
+        code = f"""# 使用训练好的音频分类模型
+import torch
+import torchaudio
+
+# 加载模型
+checkpoint = torch.load("{result['model_path']}/model.pt", map_location="cpu")
+classes = {result['classes']}
+print(f"类别: {{classes}}")
+"""
+        return summary, code
+
+    except Exception as e:
+        import traceback
+        return f"❌ 训练失败：{str(e)}\n\n{traceback.format_exc()}", ""
+
+
+# ─── 批量预测 ────────────────────────────────────────────────────────────────
+
+def run_batch_predict(model_type, model_path, file, progress=gr.Progress()):
+    if not model_path:
+        return "❌ 请填写模型路径", None
+    if file is None:
+        return "❌ 请上传数据文件", None
+
+    try:
+        df = pd.read_csv(file.name)
+        progress(0.2, desc="🔮 加载模型...")
+
+        if model_type == "文本分类":
+            from transformers import pipeline
+            clf = pipeline("text-classification", model=model_path, device=-1)
+            text_col = df.columns[0]
+            texts = df[text_col].astype(str).tolist()
+
+            progress(0.5, desc="🔮 批量预测中...")
+            results = clf(texts)
+            df["prediction"] = [r["label"] for r in results]
+            df["confidence"] = [f"{r['score']:.2%}" for r in results]
+
+        elif model_type == "表格数据":
+            with open(model_path, "rb") as f:
+                bundle = pickle.load(f)
+            model = bundle["model"]
+            preprocessor = bundle["preprocessor"]
+            feature_cols = bundle["feature_cols"]
+            classes = bundle.get("classes", [])
+
+            progress(0.5, desc="🔮 批量预测中...")
+            X = preprocessor.transform(df[feature_cols])
+            preds = model.predict(X)
+            df["prediction"] = [classes[p] if classes else str(p) for p in preds]
+
+        progress(1.0, desc="✅ 完成")
+
+        out_path = "predictions_output.csv"
+        df.to_csv(out_path, index=False)
+        summary = f"✅ 完成 {len(df)} 条预测\n\n预览前 5 行：\n{df.head(5).to_string(index=False)}"
+        return summary, out_path
+
+    except Exception as e:
+        import traceback
+        return f"❌ 预测失败：{str(e)}\n\n{traceback.format_exc()}", None
+
+
 # ─── 推理测试 ────────────────────────────────────────────────────────────────
 
 def run_inference(model_path, input_text):
@@ -403,6 +499,71 @@ my_dataset/
                     fn=run_image_training,
                     inputs=[img_folder, img_arch, img_epochs, img_size, img_batch, img_lr, img_augment],
                     outputs=[img_result, img_code],
+                )
+
+            # ── 音频分类 Tab ──────────────────────────────────────────────
+            with gr.Tab("🎵 音频分类", id="audio"):
+                gr.Markdown("""
+按以下结构组织音频文件夹，然后开始训练：
+```
+audio_dataset/
+├── 语音命令_开灯/
+│   ├── sample001.wav
+│   └── ...
+└── 语音命令_关灯/
+    └── ...
+```
+支持格式：WAV, MP3, FLAC, OGG, M4A
+""")
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        aud_folder = gr.Textbox(label="数据集路径", placeholder="/path/to/audio_dataset")
+                        aud_feature = gr.Dropdown(
+                            label="特征类型",
+                            choices=["mel_spectrogram", "mfcc"],
+                            value="mel_spectrogram",
+                            info="Mel 频谱图适合通用场景，MFCC 适合语音"
+                        )
+                        with gr.Accordion("⚙️ 训练参数", open=False):
+                            aud_epochs = gr.Slider(5, 50, value=20, step=5, label="训练轮数")
+                            aud_batch = gr.Slider(4, 64, value=16, step=4, label="批大小")
+                            aud_lr = gr.Number(value=1e-3, label="学习率", precision=8)
+                            aud_sr = gr.Slider(8000, 48000, value=16000, step=8000, label="采样率")
+
+                        aud_train_btn = gr.Button("🚀 开始训练", variant="primary", size="lg")
+
+                    with gr.Column(scale=2):
+                        aud_result = gr.Textbox(label="训练结果", lines=12, interactive=False)
+                        aud_code = gr.Code(label="📋 推理代码", language="python", lines=10)
+
+                aud_train_btn.click(
+                    fn=run_audio_training,
+                    inputs=[aud_folder, aud_feature, aud_epochs, aud_batch, aud_lr, aud_sr],
+                    outputs=[aud_result, aud_code],
+                )
+
+            # ── 批量预测 Tab ──────────────────────────────────────────────
+            with gr.Tab("📦 批量预测", id="batch"):
+                gr.Markdown("加载已训练的模型，对新数据进行批量预测并导出结果")
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        batch_type = gr.Radio(
+                            label="模型类型",
+                            choices=["文本分类", "表格数据"],
+                            value="文本分类"
+                        )
+                        batch_model = gr.Textbox(label="模型路径", placeholder="./models/your-model")
+                        batch_file = gr.File(label="上传预测数据 CSV", file_types=[".csv"])
+                        batch_btn = gr.Button("🚀 批量预测", variant="primary", size="lg")
+
+                    with gr.Column(scale=2):
+                        batch_result = gr.Textbox(label="预测结果", lines=15, interactive=False)
+                        batch_download = gr.File(label="📥 下载预测结果 CSV")
+
+                batch_btn.click(
+                    fn=run_batch_predict,
+                    inputs=[batch_type, batch_model, batch_file],
+                    outputs=[batch_result, batch_download],
                 )
 
             # ── 推理测试 Tab ──────────────────────────────────────────────
